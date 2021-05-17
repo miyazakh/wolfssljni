@@ -30,7 +30,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
-import java.net.SocketTimeoutException;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.X509TrustManager;
@@ -114,6 +113,7 @@ public class WolfSSLEngineHelper {
         this.hostname = hostname;
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
+
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new WolfSSLEngineHelper(port: " + port +
             ", hostname: " + hostname + ")");
@@ -505,6 +505,13 @@ public class WolfSSLEngineHelper {
             throw new SSLHandshakeException("Session creation not allowed");
         }
 
+        if (this.session != null && this.clientMode == true &&
+                this.sessionCreation) {
+            /* can only add new sessions to the resumption table if session
+             * creation is allowed */
+            this.authStore.addSession(this.session);
+        }
+
         this.setLocalParams();
     }
 
@@ -559,7 +566,6 @@ public class WolfSSLEngineHelper {
              * WANT_READ/WANT_WRITE errors in case underlying Socket is
              * non-blocking */
             if (this.clientMode) {
-
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "doHandshake: alling native wolfSSL_connect()");
                 /* may throw SocketTimeoutException on socket timeout */
@@ -597,4 +603,3 @@ public class WolfSSLEngineHelper {
         }
     }
 }
-
