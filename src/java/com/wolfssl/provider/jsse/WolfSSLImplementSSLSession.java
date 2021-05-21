@@ -27,7 +27,6 @@ import com.wolfssl.WolfSSLSession;
 import java.security.Principal;
 import java.security.cert.Certificate;
 import java.util.Date;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -55,6 +54,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     private final String host;
     Date creation;
     Date accessed; /* when new connection was made using session */
+    byte pseudoSessionID[] = null; /* used with TLS 1.3*/
+    private int side = 0;
 
     /* Cache peer certificates after received. Applications assume that
      * SSLSocket.getSession().getPeerCertificates() will return the peer
@@ -113,7 +114,17 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         if (ssl == null) {
             return new byte[0];
         }
-        return this.ssl.getSessionID();
+        try {
+            if (this.ssl.getVersion().equals("TLSv1.3")) {
+                 return this.pseudoSessionID;
+            }
+            else {
+                return this.ssl.getSessionID();
+            }
+        } catch (IllegalStateException | WolfSSLJNIException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public synchronized SSLSessionContext getSessionContext() {
@@ -145,8 +156,8 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     }
 
     /**
-     * After a connection has been established or on restoring connection the session
-     * is then valid and can be joined or resumed
+     * After a connection has been established or on restoring connection the
+     * session is then valid and can be joined or resumed
      * @param in true/false valid boolean
      */
     protected void setValid(boolean in) {
@@ -390,5 +401,33 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      */
     protected void setNativeTimeout(long in) {
         ssl.setSessTimeout(in);
+    }
+
+
+    /**
+     * TLS 1.3 removed session ID's, this can be used instead to
+     * search for sessions.
+     * @param id pseudo session ID at the java wrapper level
+     */
+    protected synchronized void setPseudoSessionId(byte id[]) {
+        this.pseudoSessionID = id.clone();
+    }
+
+
+    /**
+     * Sets (server/client) side of the connection for session
+     * @param in the side to be set, server or client
+     */
+    protected void setSide(int in) {
+        this.side = in;
+    }
+
+
+    /**
+     * Returns the side session is on (server/client)
+     * @return WolfSSL.* integer value of side on
+     */
+    protected int getSide() {
+        return this.side;
     }
 }
