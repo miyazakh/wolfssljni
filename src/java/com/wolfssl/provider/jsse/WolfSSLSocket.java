@@ -1667,8 +1667,7 @@ public class WolfSSLSocket extends SSLSocket {
 
                     ret = ssl.read(data, len, socket.getSoTimeout());
                     err = ssl.getError(ret);
-                    err = ssl.getError(ret);
-
+                    
                     WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "ssl.read() ret = " + ret + ", err = " + err);
 
