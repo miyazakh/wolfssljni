@@ -498,6 +498,7 @@ public class WolfSSLContext extends SSLContextSpi {
     @Override
     protected void finalize() throws Throwable {
         if (this.ctx != null) {
+            this.ctx.free();
             this.ctx = null;
         }
         super.finalize();
