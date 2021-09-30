@@ -331,7 +331,6 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1sign
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
         (*jenv)->DeleteLocalRef(jenv, ret);
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return NULL;
     }
 
@@ -546,7 +545,6 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLCertificate_X509_1get_1pubk
         (*jenv)->ExceptionDescribe(jenv);
         (*jenv)->ExceptionClear(jenv);
         (*jenv)->DeleteLocalRef(jenv, ret);
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return NULL;
     }
 
