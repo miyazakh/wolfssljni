@@ -270,11 +270,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     }
 
     @Override
-<<<<<<< HEAD
-    public X509Certificate[] getPeerCertificateChain()
-=======
     public synchronized javax.security.cert.X509Certificate[] getPeerCertificateChain()
->>>>>>> 8483096... more diligent about feeing native certificate memory when possible
         throws SSLPeerUnverifiedException {
         WolfSSLX509X x509;
 
