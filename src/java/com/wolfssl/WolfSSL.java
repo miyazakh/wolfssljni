@@ -228,6 +228,14 @@ public class WolfSSL {
     public final static int ECDSAk   = 518;
     public final static int ED25519k = 256;
 
+    /* is this object active, or has it been cleaned up? */
+    private boolean active = false;
+
+    /* ---------------------------- locks ------------------------------- */
+
+    /* lock for cleanup */
+    final private Object cleanupLock = new Object();
+
     /* ------------------------ constructors ---------------------------- */
 
     /**
@@ -916,6 +924,20 @@ public class WolfSSL {
      * @return an array of Strings for supported protocols
      */
     public static native String[] getProtocolsMask(long mask);
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable
+    {
+        synchronized(cleanupLock) {
+            if (this.active == true) {
+                /* free resources, set state */
+                this.cleanup();
+                this.active = false;
+            }
+        }
+        super.finalize();
+    }
 
 } /* end WolfSSL */
 
