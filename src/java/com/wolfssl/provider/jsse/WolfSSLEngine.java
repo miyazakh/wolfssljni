@@ -37,6 +37,7 @@ import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLParameters;
+import java.net.SocketTimeoutException;
 
 /**
  * wolfSSL implementation of SSLEngine
@@ -472,7 +473,11 @@ public class WolfSSLEngine extends SSLEngine {
     @Override
     public void beginHandshake() throws SSLException {
         EngineHelper.initHandshake();
-        EngineHelper.doHandshake(1);
+        try {
+            EngineHelper.doHandshake(1, 0);
+        } catch (SocketTimeoutException e) {
+            throw new SSLException(e);
+        }
     }
 
     @Override

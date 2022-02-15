@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
+import java.net.SocketTimeoutException;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.X509TrustManager;
@@ -517,7 +518,9 @@ public class WolfSSLEngineHelper {
      * WolfSSL.SSL_FAILURE.
      * isSSLEngine param specifies if this is being called by an SSLEngine
      * or not. Should not loop on WANT_READ/WRITE for SSLEngine */
-    protected int doHandshake(int isSSLEngine) throws SSLException {
+    protected int doHandshake(int isSSLEngine, int timeout)
+        throws SSLException, SocketTimeoutException {
+
         int ret, err;
 
         if (!modeSet) {
@@ -556,7 +559,7 @@ public class WolfSSLEngineHelper {
             if (this.clientMode) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                         "calling native wolfSSL_connect()");
-                ret = this.ssl.connect();
+                ret = this.ssl.connect(timeout);
 
             } else {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
