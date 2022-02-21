@@ -1041,7 +1041,11 @@ public class WolfSSLSocket extends SSLSocket {
             handshakeInitCalled = true;
 
             try {
-                ret = EngineHelper.doHandshake(0, this.getSoTimeout());
+                if (this.socket != null) {
+                    ret = EngineHelper.doHandshake(0, this.socket.getSoTimeout());
+                } else {
+                    ret = EngineHelper.doHandshake(0, super.getSoTimeout());
+                }
             } catch (SocketTimeoutException e) {
                 throw new IOException(e);
             }
