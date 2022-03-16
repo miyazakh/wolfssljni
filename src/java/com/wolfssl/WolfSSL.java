@@ -36,6 +36,12 @@ public class WolfSSL {
 
     /* ------------------ wolfSSL JNI error codes ----------------------- */
     public final static int JNI_SESSION_UNAVAILABLE = -10001;
+    
+    /**
+     * Socket timed out, matches com_wolfssl_WolfSSLSession.c socketSelect()
+     * return value
+     */
+    public final static int WOLFJNI_TIMEOUT = -11;
 
     /* ----------------------- wolfSSL codes ---------------------------- */
 

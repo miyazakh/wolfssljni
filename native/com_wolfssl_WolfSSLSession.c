@@ -492,7 +492,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_getFd
 /* enum values used in socketSelect() */
 enum {
     WOLFJNI_SELECT_FAIL = -10,
-    WOLFJNI_TIMEOUT     = -11,
+    WOLFJNI_TIMEOUT     = -11,  /* also in WolfSSL.java */
     WOLFJNI_RECV_READY  = -12,
     WOLFJNI_SEND_READY  = -13,
     WOLFJNI_ERROR_READY = -14
@@ -566,7 +566,7 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
     (void)jcl;
 
     if (jenv == NULL || sslPtr <= 0) {
-        return SSL_FATAL_ERROR;
+        return SSL_FAILURE;
     }
     ssl = (WOLFSSL*)(uintptr_t)sslPtr;
 
@@ -618,8 +618,12 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
             if (ret == WOLFJNI_RECV_READY || ret == WOLFJNI_SEND_READY) {
                 /* I/O ready, continue handshake and try again */
                 continue;
+            } else if (ret == WOLFJNI_TIMEOUT) {
+                /* Java will throw SocketTimeoutException */
+                break;
             } else {
-                /* error or timeout */
+                /* error */
+                ret = SSL_FAILURE;
                 break;
             }
         }
