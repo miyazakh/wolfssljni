@@ -523,6 +523,7 @@ public class WolfSSLSession {
         ret = connect(getSessionPtr(), 0);
 
         if (ret == WolfSSL.WOLFJNI_TIMEOUT) {
+            System.out.println("SocketTimeoutException in WolfSSLSession.connect");
             throw new SocketTimeoutException(
                     "Native socket timed out during SSL_connect()");
         }

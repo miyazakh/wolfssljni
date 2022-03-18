@@ -1025,20 +1025,24 @@ public class WolfSSLSocket extends SSLSocket {
             "entered startHandshake()");
 
         synchronized (handshakeLock) {
-            if (handshakeInitCalled == true || handshakeComplete == true) {
-                /* handshake already started or finished */
+            if (handshakeComplete == true) {
+                /* handshake already finished */
                 return;
+            }
+
+            if (handshakeInitCalled == false) {
+                /*
+                 * will throw SSLHandshakeException if session creation is
+                 * not allowed
+                 */
+                EngineHelper.initHandshake();
+                handshakeInitCalled = true;
             }
         }
 
         synchronized (ioLock) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                              "thread got ioLock (handshake)");
-
-            /* will throw SSLHandshakeException if session creation is
-               not allowed */
-            EngineHelper.initHandshake();
-            handshakeInitCalled = true;
 
             try {
                 if (this.socket != null) {
@@ -1665,9 +1669,15 @@ public class WolfSSLSocket extends SSLSocket {
                     }
                 }
 
-                /* do handshake if not completed yet, handles synchronization */
-                if (socket.handshakeComplete == false) {
-                    socket.startHandshake();
+                try {
+                    System.out.println("startHandshake in ssl.read: socket = " + socket);
+                    /* do handshake if not completed yet, handles synchronization */
+                    if (socket.handshakeComplete == false) {
+                        socket.startHandshake();
+                    }
+                } catch (IOException e) {
+                    System.out.println("ssl.read catch exception in startHandshake");
+                    throw new IOException("ssl.read in startHandshake");
                 }
 
                 if (b.length == 0 || len == 0) {
@@ -1784,9 +1794,15 @@ public class WolfSSLSocket extends SSLSocket {
                     }
                 }
 
-                /* do handshake if not completed yet, handles synchronization */
-                if (socket.handshakeComplete == false) {
-                    socket.startHandshake();
+                try {
+                    System.out.println("startHandshake in ssl.write: socket = " + socket);
+                    /* do handshake if not completed yet, handles synchronization */
+                    if (socket.handshakeComplete == false) {
+                        socket.startHandshake();
+                    }
+                } catch (IOException e) {
+                    System.out.println("ssl.write catch exception in startHandshake");
+                    throw new IOException("ssl.write in startHandshake");
                 }
 
                 if (off < 0 || len < 0 || (off + len) > b.length) {
