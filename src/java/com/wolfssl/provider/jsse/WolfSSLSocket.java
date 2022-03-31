@@ -1397,11 +1397,6 @@ public class WolfSSLSocket extends SSLSocket {
 
                 synchronized (handshakeLock) {
                     this.connectionClosed = true;
-                    /* Connection is closed, free native WOLFSSL session
-                     * to release native memory earlier than garbage collector
-                     * might with finalize(). */
-                    this.ssl.freeSSL();
-                    this.ssl = null;
                 }
             }
 
@@ -1427,8 +1422,6 @@ public class WolfSSLSocket extends SSLSocket {
 
         } catch (IllegalStateException e) {
             throw new IOException(e);
-        } catch (WolfSSLJNIException jnie) {
-            throw new IOException(jnie);
         }
     }
     /**
