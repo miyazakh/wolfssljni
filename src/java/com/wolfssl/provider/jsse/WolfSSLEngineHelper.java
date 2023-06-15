@@ -505,12 +505,6 @@ public class WolfSSLEngineHelper {
             throw new SSLHandshakeException("Session creation not allowed");
         }
 
-        if (this.clientMode == true && this.sessionCreation) {
-            /* can only add new sessions to the resumption table if session
-             * creation is allowed */
-            this.authStore.addSession(this.session);
-        }
-
         this.setLocalParams();
     }
 
@@ -572,6 +566,14 @@ public class WolfSSLEngineHelper {
         } while (ret != WolfSSL.SSL_SUCCESS && isSSLEngine == 0 &&
                  (err == WolfSSL.SSL_ERROR_WANT_READ ||
                   err == WolfSSL.SSL_ERROR_WANT_WRITE));
+
+        if (this.clientMode == true && this.sessionCreation) {
+            /*
+             * can only add new sessions to the resumption table if session
+             * creation is allowed
+             */
+            this.authStore.addSession(this.session);
+        }
 
         return ret;
     }
