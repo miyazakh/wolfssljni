@@ -570,8 +570,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_connect
         (*jenv)->ExceptionClear(jenv);
         return SSL_FAILURE;
     }
+
     /* get session mutex from SSL app data */
-    appData = (SSLAppData *)wolfSSL_get_app_data(ssl);
+    appData = (SSLAppData*)wolfSSL_get_app_data(ssl);
     if (appData == NULL) {
         return WOLFSSL_FAILURE;
     }
