@@ -69,6 +69,8 @@ public class WolfSSLAuthStore {
     private WolfSSLSessionContext serverCtx = null;
     private WolfSSLSessionContext clientCtx = null;
 
+    private final Object storeLock = new Object();
+
     /**
      * @param keyman key manager to use
      * @param trustman trust manager to use
@@ -264,8 +266,11 @@ public class WolfSSLAuthStore {
             SessionStore<Integer, WolfSSLImplementSSLSession> newStore =
                     new SessionStore<Integer, WolfSSLImplementSSLSession>(sz);
 
-        store.putAll(newStore);
-        store = newStore;
+        //@TODO check for side server/client, currently a resize is for all
+        synchronized (storeLock) {
+            store.putAll(newStore);
+            store = newStore;
+        }
     }
 
     /** Returns either an existing session to use or creates a new session. Can
@@ -296,7 +301,10 @@ public class WolfSSLAuthStore {
 
         /* check if is in table */
         toHash = host.concat(Integer.toString(port));
-        ses = store.get(toHash.hashCode());
+
+        synchronized (storeLock) {
+            ses = store.get(toHash.hashCode());
+        }
         if (ses == null) {
             /* not found in stored sessions create a new one */
             ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
@@ -397,9 +405,11 @@ public class WolfSSLAuthStore {
     protected Enumeration<byte[]> getAllIDs() {
         List<byte[]> ret = new ArrayList<byte[]>();
 
-        for (Object obj : store.values()) {
-            WolfSSLImplementSSLSession current = (WolfSSLImplementSSLSession)obj;
-            ret.add(current.getId());
+        synchronized (storeLock) {
+            for (Object obj : store.values()) {
+                WolfSSLImplementSSLSession current = (WolfSSLImplementSSLSession)obj;
+                ret.add(current.getId());
+            }
         }
         return Collections.enumeration(ret);
     }
@@ -412,11 +422,13 @@ public class WolfSSLAuthStore {
     protected WolfSSLImplementSSLSession getSession(byte[] ID) {
         WolfSSLImplementSSLSession ret = null;
 
-        for (Object obj : store.values()) {
-            WolfSSLImplementSSLSession current = (WolfSSLImplementSSLSession)obj;
-            if (java.util.Arrays.equals(ID, current.getId())) {
-                ret = current;
-                break;
+        synchronized (storeLock) {
+            for (Object obj : store.values()) {
+                WolfSSLImplementSSLSession current = (WolfSSLImplementSSLSession)obj;
+                if (java.util.Arrays.equals(ID, current.getId())) {
+                    ret = current;
+                    break;
+                }
             }
         }
         return ret;
@@ -431,24 +443,26 @@ public class WolfSSLAuthStore {
     protected void updateTimeouts(int in) {
         Date currentDate = new Date();
         long now = currentDate.getTime();
+        
+        synchronized (storeLock) {
+            for (Object obj : store.values()) {
+                long diff;
+                WolfSSLImplementSSLSession current =
+                    (WolfSSLImplementSSLSession)obj;
 
-        for (Object obj : store.values()) {
-            long diff;
-            WolfSSLImplementSSLSession current =
-                (WolfSSLImplementSSLSession)obj;
+                /* difference in seconds */
+                diff = (now - current.creation.getTime()) / 1000;
 
-            /* difference in seconds */
-            diff = (now - current.creation.getTime()) / 1000;
+                if (diff < 0) {
+                    /* session is from the future ... */ //@TODO
 
-            if (diff < 0) {
-                /* session is from the future ... */ //@TODO
+                }
 
+                if (in > 0 && diff > in) {
+                    current.invalidate();
+                }
+                current.setNativeTimeout(in);
             }
-
-            if (in > 0 && diff > in) {
-                current.invalidate();
-            }
-            current.setNativeTimeout(in);
         }
     }
 
