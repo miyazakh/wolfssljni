@@ -268,8 +268,6 @@ public class WolfSSL {
         wolfssl_idea        = getBulkCipherAlgorithmEnumIDEA();
         wolfssl_aes_gcm     = getBulkCipherAlgorithmEnumAESGCM();
         wolfssl_aes_ccm     = getBulkCipherAlgorithmEnumAESCCM();
-        wolfssl_hc128       = getBulkCipherAlgorithmEnumHC128();
-        wolfssl_rabbit      = getBulkCipherAlgorithmEnumRABBIT();
     }
 
     /* ------------------- private/protected methods -------------------- */
@@ -290,8 +288,6 @@ public class WolfSSL {
     static native int getBulkCipherAlgorithmEnumAESCCM();
     static native int getBulkCipherAlgorithmEnumCHACHA();
     static native int getBulkCipherAlgorithmEnumCAMELLIA();
-    static native int getBulkCipherAlgorithmEnumHC128();
-    static native int getBulkCipherAlgorithmEnumRABBIT();
 
     static native String getEnabledCipherSuites();
     static native String getEnabledCipherSuitesIana();

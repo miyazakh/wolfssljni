@@ -182,24 +182,6 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumCAMELL
     return wolfssl_camellia;
 }
 
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumHC128
-  (JNIEnv* jenv, jclass jcl)
-{
-    (void)jenv;
-    (void)jcl;
-
-    return wolfssl_hc128;
-}
-
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSL_getBulkCipherAlgorithmEnumRABBIT
-  (JNIEnv* jenv, jclass jcl)
-{
-    (void)jenv;
-    (void)jcl;
-
-    return wolfssl_rabbit;
-}
-
 JNIEXPORT jboolean JNICALL Java_com_wolfssl_WolfSSL_TLSv1Enabled
   (JNIEnv* jenv, jclass jcl)
 {
