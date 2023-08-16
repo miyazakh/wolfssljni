@@ -69,7 +69,7 @@ public class WolfSSLAuthStore {
     private WolfSSLSessionContext serverCtx = null;
     private WolfSSLSessionContext clientCtx = null;
 
-    private final Object storeLock = new Object();
+    private static final Object storeLock = new Object();
 
     /**
      * @param keyman key manager to use
