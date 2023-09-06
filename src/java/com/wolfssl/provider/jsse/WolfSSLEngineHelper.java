@@ -34,7 +34,7 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.SSLHandshakeException;
-import java.io.IOException;
+import java.security.Security;
 
 /**
  * This is a helper function to account for similar methods between SSLSocket
@@ -46,10 +46,9 @@ import java.io.IOException;
  * @author wolfSSL
  */
 public class WolfSSLEngineHelper {
-    private final WolfSSLSession ssl;
+    private volatile WolfSSLSession ssl = null;
     private WolfSSLImplementSSLSession session = null;
-    private WolfSSLParameters params;
-    private WolfSSLDebug debug;
+    private WolfSSLParameters params = null;
     private int port;
     private String hostname = null;  /* used for session lookup and SNI */
     private WolfSSLAuthStore authStore = null;
@@ -113,36 +112,73 @@ public class WolfSSLEngineHelper {
         this.hostname = hostname;
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
-
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new WolfSSLEngineHelper(port: " + port +
             ", hostname: " + hostname + ")");
     }
 
-    /* used internally by SSLSocket.connect(SocketAddress) */
+    /**
+     * Set hostname and port
+     * Used internally by SSLSocket.connect(SocketAddress)
+     *
+     * @param hostname peer hostname String
+     * @param port peer port number
+     */
     protected void setHostAndPort(String hostname, int port) {
         this.hostname = hostname;
         this.port = port;
     }
 
+    /**
+     * Get the com.wolfssl.WolfSSLSession for this object
+     *
+     * @return com.wolfssl.WolfSSLSession for this object
+     */
     protected WolfSSLSession getWolfSSLSession() {
         return ssl;
     }
 
+    /**
+     * Get WolfSSLImplementSession for this object
+     *
+     * @return WolfSSLImplementSession for this object
+     */
     protected WolfSSLImplementSSLSession getSession() {
         return session;
     }
 
-    /* gets all supported cipher suites */
+    /**
+     * Get all supported cipher suites in native wolfSSL library, which
+     * are also allowed by "wolfjsse.enabledCipherSuites" system Security
+     * property, if set.
+     *
+     * @return String array of all supported cipher suites
+     */
     protected String[] getAllCiphers() {
-        return WolfSSL.getCiphersIana();
+        return WolfSSLUtil.sanitizeSuites(WolfSSL.getCiphersIana());
     }
 
-    /* gets all enabled cipher suites */
+    /**
+     * Get all enabled cipher suites, and allowed via
+     * wolfjsse.enabledCipherSuites system Security property (if set).
+     *
+     * @return String array of all enabled cipher suites
+     */
     protected String[] getCiphers() {
-        return this.params.getCipherSuites();
+        return WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites());
     }
 
+    /**
+     * Set cipher suites enabled in WolfSSLParameters
+     *
+     * Sanitizes input array for invalid suites
+     *
+     * @param suites String array of cipher suites to be enabled
+     *
+     * @throws IllegalArgumentException if input array contains invalid
+     *         cipher suites, input array is null, or input array has length
+     *         zero
+     */
     protected void setCiphers(String[] suites) throws IllegalArgumentException {
 
         if (suites == null) {
@@ -162,9 +198,19 @@ public class WolfSSLEngineHelper {
             }
         }
 
-        this.params.setCipherSuites(suites);
+        this.params.setCipherSuites(WolfSSLUtil.sanitizeSuites(suites));
     }
 
+    /**
+     * Set protocols enabled in WolfSSLParameters
+     *
+     * Sanitizes protocol array for invalid protocols
+     *
+     * @param p String array of SSL/TLS protocols to be enabled
+     *
+     * @throws IllegalArgumentException if input array is null,
+     *         has length zero, or contains invalid/unsupported protocols
+     */
     protected void setProtocols(String[] p) throws IllegalArgumentException {
 
         if (p == null) {
@@ -184,23 +230,41 @@ public class WolfSSLEngineHelper {
             }
         }
 
-        this.params.setProtocols(p);
+        this.params.setProtocols(WolfSSLUtil.sanitizeProtocols(p));
     }
 
-    /* gets enabled protocols */
+    /**
+     * Get enabled SSL/TLS protocols from WolfSSLParameters
+     *
+     * @return String array of enabled SSL/TLS protocols
+     */
     protected String[] getProtocols() {
-        return this.params.getProtocols();
+        return WolfSSLUtil.sanitizeProtocols(this.params.getProtocols());
     }
 
-    /* gets all supported protocols */
+    /**
+     * Get all supported SSL/TLS protocols in native wolfSSL library,
+     * which are also allowed by 'jdk.tls.client.protocols' or
+     * 'jdk.tls.server.protocols' if set.
+     *
+     * @return String array of supported protocols
+     */
     protected String[] getAllProtocols() {
-        return WolfSSL.getProtocols();
+        return WolfSSLUtil.sanitizeProtocols(WolfSSL.getProtocols());
     }
 
+    /**
+     * Set client mode for associated WOLFSSL session
+     *
+     * @param mode client mode (true/false)
+     *
+     * @throws IllegalArgumentException if called after SSL/TLS handshake
+     *         has been completed. Only allowed before.
+     */
     protected void setUseClientMode(boolean mode)
         throws IllegalArgumentException {
 
-        if (ssl.handshakeDone()) {
+        if (this.ssl.handshakeDone()) {
             throw new IllegalArgumentException("setUseClientMode() not " +
                 "allowed after handshake is completed");
         }
@@ -215,45 +279,116 @@ public class WolfSSLEngineHelper {
         this.modeSet = true;
     }
 
+    /**
+     * Get clientMode for associated session
+     *
+     * @return boolean value of clientMode set for this session
+     */
     protected boolean getUseClientMode() {
         return this.clientMode;
     }
 
+    /**
+     * Set if session needs client authentication
+     *
+     * @param need boolean if session needs client authentication
+     */
     protected void setNeedClientAuth(boolean need) {
         this.params.setNeedClientAuth(need);
     }
 
+    /**
+     * Get value of needClientAuth for this session
+     *
+     * @return boolean value for needClientAuth
+     */
     protected boolean getNeedClientAuth() {
         return this.params.getNeedClientAuth();
     }
 
+    /**
+     * Set value of wantClientAuth for this session
+     *
+     * @param want boolean value of wantClientAuth for this session
+     */
     protected void setWantClientAuth(boolean want) {
         this.params.setWantClientAuth(want);
     }
 
+    /**
+     * Get value of wantClientAuth for this session
+     *
+     * @return boolean value for wantClientAuth
+     */
     protected boolean getWantClientAuth() {
         return this.params.getWantClientAuth();
     }
 
+    /**
+     * Set ability to create sessions
+     *
+     * @param flag boolean to set enable session creation
+     */
     protected void setEnableSessionCreation(boolean flag) {
         this.sessionCreation = flag;
     }
 
+    /**
+     * Get boolean if session creation is allowed
+     *
+     * @return boolean value for enableSessionCreation
+     */
     protected boolean getEnableSessionCreation() {
         return this.sessionCreation;
     }
 
+    /**
+     * Enable use of session tickets
+     *
+     * @param flag boolean to enable/disable session tickets
+     */
     protected void setUseSessionTickets(boolean flag) {
         this.params.setUseSessionTickets(flag);
     }
 
+    /**
+     * Set ALPN protocols
+     *
+     * @param alpnProtos encoded byte array of ALPN protocols
+     */
     protected void setAlpnProtocols(byte[] alpnProtos) {
         this.params.setAlpnProtocols(alpnProtos);
     }
 
+    /**
+     * Get selected ALPN protocol
+     *
+     * Used by some versions of Android, non-standard ALPN API.
+     *
+     * @return encoded byte array for selected ALPN protocol or null if
+     *         handshake has not finished
+     */
     protected byte[] getAlpnSelectedProtocol() {
-        if (ssl.handshakeDone()) {
+        if (this.ssl.handshakeDone()) {
             return ssl.getAlpnSelected();
+        }
+        return null;
+    }
+
+    /**
+     * Get selected ALPN protocol string
+     *
+     * @return String representation of selected ALPN protocol or null
+     *         if handshake has not finished
+     */
+    protected String getAlpnSelectedProtocolString() {
+        if (this.ssl.handshakeDone()) {
+            String proto = ssl.getAlpnSelectedString();
+
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "selected ALPN protocol = " + proto);
+
+            return proto;
         }
         return null;
     }
@@ -293,15 +428,21 @@ public class WolfSSLEngineHelper {
     }
 
     /* sets the protocol to use with WOLFSSL connections */
-    private void setLocalProtocol(String[] p) {
+    private void setLocalProtocol(String[] p)
+        throws SSLException {
+
         int i;
         long mask = 0;
-        boolean set[] = new boolean[5];
+        boolean[] set = new boolean[5];
         Arrays.fill(set, false);
 
         if (p == null) {
             /* if null then just use wolfSSL default */
             return;
+        }
+
+        if (p.length == 0) {
+            throw new SSLException("No protocols enabled or available");
         }
 
         for (i = 0; i < p.length; i++) {
@@ -360,11 +501,19 @@ public class WolfSSLEngineHelper {
         X509TrustManager tm = authStore.getX509TrustManager();
         if (tm instanceof com.wolfssl.provider.jsse.WolfSSLTrustX509) {
             /* use internal peer verification logic */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "X509TrustManager is of type WolfSSLTrustX509");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Using native internal peer verification logic");
             this.ssl.setVerify(mask, null);
 
         } else {
             /* not our own TrustManager, set up callback so JSSE can use
              * TrustManager.checkClientTrusted/checkServerTrusted() */
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "X509TrustManager is not of type WolfSSLTrustX509");
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Using checkClientTrusted/ServerTrusted() for verification");
             wicb = new WolfSSLInternalVerifyCb(authStore.getX509TrustManager(),
                                                this.clientMode);
             this.ssl.setVerify(WolfSSL.SSL_VERIFY_PEER, wicb);
@@ -459,30 +608,149 @@ public class WolfSSLEngineHelper {
 
     /* Set the ALPN to be used for this session */
     private void setLocalAlpnProtocols() {
-        byte[] alpnProtos = this.params.getAlpnProtos();
 
-        if (alpnProtos != null) {
+        /* ALPN protocol list could be stored in either of the following,
+         * depending on what platform/JDK we are being used on:
+         *     this.params.getAlpnProtos() or
+         *     this.params.getApplicationProtocols()
+         * For example, Conscrypt consumers on older Android versions with
+         * JDK 7 will be in params.getAlpnProtos(). JDK versions > 8, with
+         * support for params.getApplicationProtocols() will likely use that
+         * instead. */
+
+        int i;
+        byte[] alpnProtos = this.params.getAlpnProtos();
+        String[] applicationProtocols = this.params.getApplicationProtocols();
+
+        if ((alpnProtos != null && alpnProtos.length > 0) &&
+            (applicationProtocols != null && applicationProtocols.length > 0)) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                "Setting ALPN protocols for WOLFSSL session");
-            this.ssl.setAlpnProtos(alpnProtos);
-        } else {
+                "ALPN protocols found in both params.getAlpnProtos() and " +
+                "params.getApplicationProtocols()");
+        }
+
+        /* try to set from byte[] first, then overwrite with String[] if
+         * both have been set */
+        if (alpnProtos != null && alpnProtos.length > 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Setting ALPN protocols for WOLFSSL session from byte[" +
+                alpnProtos.length + "]");
+            this.ssl.useALPN(alpnProtos);
+        }
+
+        if (applicationProtocols != null && applicationProtocols.length > 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "Setting Application Protocols for WOLFSSL session " +
+                "from String[]:");
+            for (i = 0; i < applicationProtocols.length; i++) {
+                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                    "\t" + i + ": " + applicationProtocols[i]);
+            }
+
+            /* continue on mismatch */
+            this.ssl.useALPN(applicationProtocols,
+                             WolfSSL.WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+        }
+
+        if (alpnProtos == null && applicationProtocols == null) {
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "No ALPN protocols set, not setting for this WOLFSSL session");
         }
     }
 
-    private void setLocalParams() {
-        this.setLocalCiphers(this.params.getCipherSuites());
-        this.setLocalProtocol(this.params.getProtocols());
+    private void setLocalSecureRenegotiation() {
+        /* Enable secure renegotiation if native wolfSSL has been compiled
+         * with HAVE_SECURE_RENEGOTIATION. Some JSSE consuming apps
+         * expect that secure renegotiation will be supported. */
+        int ret = this.ssl.useSecureRenegotiation();
+        if (ret != WolfSSL.SSL_SUCCESS && ret != WolfSSL.NOT_COMPILED_IN) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "error enabling secure renegotiation, ret = " + ret);
+        } else if (ret == 0) {
+            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                "enabled secure renegotiation support for session");
+        }
+    }
+
+    private void setLocalSigAlgorithms() {
+
+        int ret = 0;
+
+        if (this.clientMode) {
+            /* Get restricted signature algorithms for ClientHello if set by
+             * user in "wolfjsse.enabledSigAlgorithms" Security property */
+            String sigAlgos = WolfSSLUtil.getSignatureAlgorithms();
+
+            if (sigAlgos != null) {
+                ret = this.ssl.setSignatureAlgorithms(sigAlgos);
+                if (ret != WolfSSL.SSL_SUCCESS &&
+                    ret != WolfSSL.NOT_COMPILED_IN) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "error restricting signature algorithms based on " +
+                        "wolfjsse.enabledSignatureAlgorithms property");
+                } else if (ret == WolfSSL.SSL_SUCCESS) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "restricted signature algorithms based on " +
+                        "wolfjsse.enabledSignatureAlgorithms property");
+                }
+            }
+        }
+    }
+
+    private void setLocalSupportedCurves() throws SSLException {
+
+        int ret = 0;
+
+        if (this.clientMode) {
+            /* Get restricted supported curves for ClientHello if set by
+             * user in "wolfjsse.enabledSupportedCurves" Security property */
+            String[] curves = WolfSSLUtil.getSupportedCurves();
+
+            if (curves != null) {
+                ret = this.ssl.useSupportedCurves(curves);
+                if (ret != WolfSSL.SSL_SUCCESS) {
+                    if (ret == WolfSSL.NOT_COMPILED_IN) {
+                        WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                            "Unable to set requested TLS Supported Curves, " +
+                            "native support not compiled in.");
+                    }
+                    else {
+                        throw new SSLException(
+                            "Error setting TLS Supported Curves based on " +
+                            "wolfjsse.enabledSupportedCurves property, ret = " +
+                            ret + ", curves: " + Arrays.toString(curves));
+                    }
+                }
+                else {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "set TLS Supported Curves based on " +
+                        "wolfjsse.enabledSupportedCurves property");
+                }
+            }
+        }
+    }
+
+    private void setLocalParams() throws SSLException {
+        this.setLocalCiphers(
+            WolfSSLUtil.sanitizeSuites(this.params.getCipherSuites()));
+        this.setLocalProtocol(
+            WolfSSLUtil.sanitizeProtocols(this.params.getProtocols()));
         this.setLocalAuth();
         this.setLocalServerNames();
         this.setLocalSessionTicket();
         this.setLocalAlpnProtocols();
     }
 
-    /* sets all parameters from WolfSSLParameters into WOLFSSL object and
-     * creates session.
-     * Should be called before doHandshake */
+    /**
+     * Sets all parameters from WolfSSLParameters into native WOLFSSL object
+     * and creates session.
+     *
+     * This should be called before doHandshake()
+     *
+     * @throws SSLException if setUseClientMode() has not been called
+     * @throws SSLHandshakeException session creation is not allowed
+     *
+     */
     protected void initHandshake() throws SSLException {
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
@@ -492,14 +760,15 @@ public class WolfSSLEngineHelper {
         this.session = this.authStore.getSession(ssl, this.port, this.hostname,
             this.clientMode);
 
-        if (this.session != null && this.clientMode) {
-            this.session.setSessionContext(authStore.getClientContext());
-            this.session.setSide(WolfSSL.WOLFSSL_CLIENT_END);
-        }
-        else {
-            this.session.setSessionContext(authStore.getServerContext());
-            this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
-        }
+        if (this.session != null) {
+            if (this.clientMode) {
+                this.session.setSessionContext(authStore.getClientContext());
+                this.session.setSide(WolfSSL.WOLFSSL_CLIENT_END);
+            }
+            else {
+                this.session.setSessionContext(authStore.getServerContext());
+                this.session.setSide(WolfSSL.WOLFSSL_SERVER_END);
+            }
 
         if (this.session != null && this.sessionCreation == false &&
                 !this.session.fromTable) {
@@ -511,27 +780,38 @@ public class WolfSSLEngineHelper {
             /* TODO: SunJSSE sends a Handshake Failure alert instead here */
             this.ssl.shutdownSSL();
 
-            throw new SSLHandshakeException("Session creation not allowed");
-        }
+                /* send CloseNotify */
+                /* TODO: SunJSSE sends a Handshake Failure alert instead here */
+                this.ssl.shutdownSSL();
 
-        if (this.session != null && this.sessionCreation) {
-            /* can only add new sessions to the resumption table if session
-             * creation is allowed */
-            this.authStore.addSession(this.session);
+                throw new SSLHandshakeException("Session creation not allowed");
+            }
         }
 
         this.setLocalParams();
     }
 
-    /* start or continue handshake, return WolfSSL.SSL_SUCCESS or
-     * WolfSSL.SSL_FAILURE.
-     * isSSLEngine param specifies if this is being called by an SSLEngine
-     * or not. Should not loop on WANT_READ/WRITE for SSLEngine */
+    /**
+     * Start or continue handshake
+     *
+     * Callers should not loop on WANT_READ/WRITE when used with SSLEngine.
+     *
+     * @param isSSLEngine specifies if this is being called by an SSLEngine
+     *                    or not.
+     * @param timeout socket timeout (milliseconds) for connect(), or 0 for
+     *                infinite/no timeout.
+     *
+     * @return WolfSSL.SSL_SUCCESS on success or either WolfSSL.SSL_FAILURE
+     *         or WolfSSL.SSL_HANDSHAKE_FAILURE on error
+     *
+     * @throws SSLException if setUseClientMode() has not been called.
+     * @throws SocketTimeoutException if socket timed out
+     */
     protected int doHandshake(int isSSLEngine, int timeout)
         throws SSLException, SocketTimeoutException {
 
         int ret, err;
-        String serverId;
+        byte[] serverId = null;
 
         if (!modeSet) {
             throw new SSLException("setUseClientMode has not been called");
@@ -563,10 +843,16 @@ public class WolfSSLEngineHelper {
         }
 
         if (this.clientMode) {
-            serverId = this.hostname + this.port;
-            ret = this.ssl.setServerId(serverId);
-            if(ret != WolfSSL.SSL_SUCCESS)
+            /* Associate host:port as serverID for client session cache,
+             * helps native wolfSSL for TLS 1.3 sessions with no session ID.
+             * Setting newSession to 1 for setServerID since we are controlling
+             * get/set session from Java */
+            serverId = this.hostname.concat(
+                Integer.toString(this.port)).getBytes();
+            ret = this.ssl.setServerID(serverId, 1);
+            if (ret != WolfSSL.SSL_SUCCESS) {
                 return WolfSSL.SSL_HANDSHAKE_FAILURE;
+            }
         }
 
         do {
@@ -575,9 +861,8 @@ public class WolfSSLEngineHelper {
              * non-blocking */
             if (this.clientMode) {
                 WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                        "doHandshake: alling native wolfSSL_connect()");
+                        "calling native wolfSSL_connect()");
                 /* may throw SocketTimeoutException on socket timeout */
-
                 ret = this.ssl.connect(timeout);
 
             } else {
@@ -591,11 +876,14 @@ public class WolfSSLEngineHelper {
                  (err == WolfSSL.SSL_ERROR_WANT_READ ||
                   err == WolfSSL.SSL_ERROR_WANT_WRITE));
 
-        if (this.clientMode == true && this.sessionCreation) {
-            /*
-             * can only add new sessions to the resumption table if session
-             * creation is allowed
-             */
+        if (this.sessionCreation && ret == WolfSSL.SSL_SUCCESS) {
+            /* can only add new sessions to the resumption table if session
+             * creation is allowed */
+            if (this.clientMode) {
+                /* Only need to set resume on client side, server-side
+                 * maintains session cache at native level. */
+                this.session.setResume();
+            }
             this.authStore.addSession(this.session);
         }
 
@@ -607,7 +895,28 @@ public class WolfSSLEngineHelper {
      */
     protected void saveSession() {
         if (this.session != null && this.session.isValid()) {
-            this.session.setResume();
+            if (this.clientMode) {
+                /* Only need to set resume on client side, server-side
+                 * maintains session cache at native level. */
+                this.session.setResume();
+            }
+            this.authStore.addSession(this.session);
         }
     }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected synchronized void finalize() throws Throwable {
+
+        /* Reset this.ssl to null, but don't explicitly free. This object
+         * may be used by wrapper object to WolfSSLEngineHelper and should
+         * be freed there */
+        this.ssl = null;
+
+        this.session = null;
+        this.params = null;
+        this.authStore = null;
+        super.finalize();
+    }
 }
+
