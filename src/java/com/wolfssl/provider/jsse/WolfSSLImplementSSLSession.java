@@ -449,10 +449,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         synchronized (sesPtrLock) {
             if (this.sesPtr != 0) {
                 ret = in.setSession(this.sesPtr);
-                //System.out.println("setSession1 ret " + ret);
             }
-            //System.out.println("this.sesPtr = " + (this.sesPtr == 0));
-            //System.out.println("setSession2 ret " + ret);
             ssl = in;
         }
 
