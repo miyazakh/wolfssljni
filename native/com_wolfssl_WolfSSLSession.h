@@ -153,6 +153,22 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSession
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
+ * Method:    freeNativeSession
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeNativeSession
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
+ * Method:    setServerId
+ * Signature: (JLjava/lang/String;I)I
+ */
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setServerId
+  (JNIEnv *, jobject, jlong, jstring, jint);
+
+/*
+ * Class:     com_wolfssl_WolfSSLSession
  * Method:    getSessionID
  * Signature: (J)[B
  */
@@ -161,17 +177,11 @@ JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
 
 /*
  * Class:     com_wolfssl_WolfSSLSession
- * Method:    setServerID
- * Signature: (J)[B
+ * Method:    setTimeout
+ * Signature: (JJ)I
  */
-JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setServerID(JNIEnv *jenv, jlong sslPtr, jstring id, jint length)
-
-    /*
-     * Class:     com_wolfssl_WolfSSLSession
-     * Method:    setTimeout
-     * Signature: (JJ)I
-     */
-    JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTimeout(JNIEnv *, jobject, jlong, jlong);
+JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTimeout
+  (JNIEnv *, jobject, jlong, jlong);
 
 /*
  * Class:     com_wolfssl_WolfSSLSession

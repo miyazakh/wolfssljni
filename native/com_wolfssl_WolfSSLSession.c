@@ -1062,6 +1062,20 @@ JNIEXPORT jlong JNICALL Java_com_wolfssl_WolfSSLSession_getSession
     return (jlong)(uintptr_t)wolfSSL_get_session((WOLFSSL*)(uintptr_t)ssl);
 }
 
+JNIEXPORT void JNICALL Java_com_wolfssl_WolfSSLSession_freeNativeSession
+  (JNIEnv* jenv, jclass jcl, jlong sessionPtr)
+{
+    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)(uintptr_t)sessionPtr;
+    (void)jcl;
+
+    if (jenv == NULL) {
+        return;
+    }
+
+    /* checks session for NULL */
+    wolfSSL_SESSION_free(session);
+}
+
 JNIEXPORT jbyteArray JNICALL Java_com_wolfssl_WolfSSLSession_getSessionID
   (JNIEnv* jenv, jobject jcl, jlong session)
 {

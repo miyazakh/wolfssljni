@@ -67,8 +67,17 @@ public class WolfSSLSession {
     private WolfSSLIORecvCallback internRecvSSLCb;
     private WolfSSLIOSendCallback internSendSSLCb;
 
+    /* have session tickets been enabled for this session? Default to false. */
+    private boolean sessionTicketsEnabled = false;
+
     /* is this context active, or has it been freed? */
     private boolean active = false;
+
+    /* lock around active state */
+    private final Object stateLock = new Object();
+
+    /* lock around native WOLFSSL pointer use */
+    private final Object sslLock = new Object();
 
     /* return values from naitve socketSelect(), should match
      * ones in native/com_wolfssl_WolfSSLSession.c */
@@ -180,6 +189,21 @@ public class WolfSSLSession {
         return ret;
     }
 
+    /**
+     * Verifies that the current WolfSSLSession object is active.
+     *
+     * @throws IllegalStateException if object has been freed
+     */
+    private synchronized void confirmObjectIsActive()
+        throws IllegalStateException {
+
+        synchronized (stateLock) {
+            if (this.active == false) {
+                throw new IllegalStateException(
+                    "WolfSSLSession object has been freed");
+            }
+        }
+    }
     /* ------------------ native method declarations -------------------- */
 
     private native long newSSL(long ctx);
@@ -200,6 +224,7 @@ public class WolfSSLSession {
     private native int getError(long ssl, int ret);
     private native int setSession(long ssl, long session);
     private native long getSession(long ssl);
+    private static native void freeNativeSession(long session);
     private native int setServerId(long ssl, String id, int length);
     private native byte[] getSessionID(long session);
     private native int setTimeout(long ssl, long t);
@@ -1011,7 +1036,20 @@ public class WolfSSLSession {
 
         return getSession(getSessionPtr());
     }
+    /**
+     * Free the native WOLFSSL_SESSION structure pointed to be session.
+     *
+     * @param session native WOLFSSL_SESSION pointer to free
+     */
+    public static synchronized void freeSession(long session) {
+        /* No need to call confirmObjectIsActive() because the
+         * WOLFSSL_SESSION pointer being passed in here is not associated
+         * with this WOLFSSL object or WolfSSLSession. */
 
+        if (session != 0) {
+            freeNativeSession(session);
+        }
+    }
     /**
      * Returns the session ID.
      *
@@ -2728,10 +2766,34 @@ public class WolfSSLSession {
      */
     public int useSessionTicket() throws IllegalStateException {
 
-        if (this.active == false)
-            throw new IllegalStateException("Object has been freed");
+        int ret;
 
-        return useSessionTicket(getSessionPtr());
+        confirmObjectIsActive();
+
+        synchronized (sslLock) {
+            ret = useSessionTicket(getSessionPtr());
+
+            if (ret == WolfSSL.SSL_SUCCESS) {
+                this.sessionTicketsEnabled = true;
+            }
+        }
+
+        return ret;
+    }
+
+    /**
+     * Determine if session tickets have been enabled for this session.
+     * Session tickets can be enabled for this session by calling
+     * WolfSSLSession.useSessionTicket().
+     *
+     * @return true if enabled, otherwise false.
+     * @throws IllegalStateException WolfSSLSession has been freed
+     */
+    public boolean sessionTicketsEnabled() throws IllegalStateException {
+
+        confirmObjectIsActive();
+
+        return this.sessionTicketsEnabled;
     }
 
     /**

@@ -21,34 +21,39 @@
 
 package com.wolfssl.provider.jsse;
 
+import com.wolfssl.WolfSSL;
+import com.wolfssl.WolfSSLException;
+import com.wolfssl.WolfSSLJNIException;
+import com.wolfssl.WolfSSLSession;
 import java.util.Enumeration;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
 
 public class WolfSSLSessionContext implements SSLSessionContext {
     private WolfSSLAuthStore store;
+    private WolfSSLSession sslCtx;
+
     private int sesTimout;
     private int sesCache;
-    private int side;
 
-    public WolfSSLSessionContext(WolfSSLAuthStore in, int defaultCacheSize,
-            int side) {
+    public WolfSSLSessionContext(WolfSSLAuthStore in, int defaultCacheSize) {
         this.store     = in;
         this.sesCache  = defaultCacheSize;
-        this.sesTimout = 86400; /* this is the default value in SunJSSE too */
-        this.side      = side;
+        this.sesTimout = 86400; /* this is the default value found in SunJSSE too */
     }
 
 
     @Override
     public SSLSession getSession(byte[] sessionId) {
-        return store.getSession(sessionId, side);
+        return store.getSession(sessionId);
     }
 
 
     @Override
     public Enumeration<byte[]> getIds() {
-        return store.getAllIDs(side);
+        return store.getAllIDs();
     }
 
 
@@ -57,7 +62,7 @@ public class WolfSSLSessionContext implements SSLSessionContext {
         this.sesTimout = in;
 
         /* check for any new timeouts after timeout has been set */
-        store.updateTimeouts(in, this.side);
+        store.updateTimeouts(in);
     }
 
     @Override
@@ -76,7 +81,7 @@ public class WolfSSLSessionContext implements SSLSessionContext {
 
         /* resize store array if needed */
         if (this.sesCache != in) {
-            store.resizeCache(in, this.side);
+            store.resizeCache(in);
         }
         this.sesCache = in;
     }
@@ -85,4 +90,5 @@ public class WolfSSLSessionContext implements SSLSessionContext {
     public int getSessionCacheSize() {
         return this.sesCache;
     }
+
 }
