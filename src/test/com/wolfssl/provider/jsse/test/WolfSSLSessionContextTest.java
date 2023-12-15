@@ -33,11 +33,13 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
 import java.security.Security;
 import java.security.Provider;
 import java.security.NoSuchProviderException;
 import java.security.NoSuchAlgorithmException;
+import java.security.KeyManagementException;
 
 import com.wolfssl.WolfSSLException;
 import com.wolfssl.provider.jsse.WolfSSLProvider;
@@ -134,7 +136,7 @@ public class WolfSSLSessionContextTest {
         } catch (SSLException e1) {
             // TODO Auto-generated catch block
             e1.printStackTrace();
-            error("\t\t... failed");
+            error("\t... failed");
             fail("session close failed");
         }
 
@@ -211,8 +213,7 @@ public class WolfSSLSessionContextTest {
             fail("client session timout should still be default value");
         }
 
-        /* reading the API description I think this should be invalid but it is
-         * not with SunJSSE
+        /* reading the API description I think this should be invalid but it is not with SunJSSE
          * @TODO */
 //        if (ses.isValid() != false) {
 //            error("\t... failed");
@@ -502,6 +503,10 @@ public class WolfSSLSessionContextTest {
 
     private void pass(String msg) {
         WolfSSLTestFactory.pass(msg);
+    }
+
+    private void fail(String msg) {
+        System.out.println(msg);
     }
 
     private void error(String msg) {

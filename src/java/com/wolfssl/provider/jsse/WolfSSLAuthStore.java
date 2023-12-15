@@ -341,14 +341,18 @@ public class WolfSSLAuthStore {
     protected WolfSSLImplementSSLSession getSession(WolfSSLSession ssl) {
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "creating new session");
-
-        WolfSSLImplementSSLSession ses =
-            new WolfSSLImplementSSLSession(ssl, this);
-
-        ses.setValid(true);
-        ses.isFromTable = false;
-        ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
-
+        WolfSSLImplementSSLSession ses = new WolfSSLImplementSSLSession(ssl, this);
+        if (ses != null) {
+            ses.setValid(true);
+            ses.isFromTable = false;
+            ses.setPseudoSessionId(Integer.toString(ssl.hashCode()).getBytes());
+            if (ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
+                ses.setSessionContext(serverCtx);
+            }
+            else {
+                ses.setSessionContext(clientCtx);
+            }
+        }
         return ses;
     }
 

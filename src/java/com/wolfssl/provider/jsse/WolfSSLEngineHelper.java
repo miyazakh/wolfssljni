@@ -47,7 +47,7 @@ import java.io.IOException;
  * @author wolfSSL
  */
 public class WolfSSLEngineHelper {
-    private final WolfSSLSession ssl;
+    private volatile WolfSSLSession ssl;
     private WolfSSLImplementSSLSession session = null;
     private WolfSSLParameters params;
     private WolfSSLDebug debug;
@@ -346,9 +346,7 @@ public class WolfSSLEngineHelper {
 
         /* default to client side authenticating the server connecting to */
         if (this.clientMode) {
-            /* mask = WolfSSL.SSL_VERIFY_PEER; */
-            WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                            "!!!!!!!!!!!!!SSL_VERIFY_PEER (comment out)");
+            mask = WolfSSL.SSL_VERIFY_PEER;
         }
 
         if (this.params.getWantClientAuth()) {
