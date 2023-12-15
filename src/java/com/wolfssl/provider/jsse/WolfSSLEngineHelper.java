@@ -505,6 +505,12 @@ public class WolfSSLEngineHelper {
             throw new SSLHandshakeException("Session creation not allowed");
         }
 
+        if (this.session != null && this.sessionCreation) {
+            /* can only add new sessions to the resumption table if session
+             * creation is allowed */
+            this.authStore.addSession(this.session);
+        }
+
         this.setLocalParams();
     }
 

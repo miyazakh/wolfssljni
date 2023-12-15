@@ -316,6 +316,12 @@ public class WolfSSLAuthStore {
                 ses.isFromTable = false;
                 ses.setPseudoSessionId(
                     Integer.toString(ssl.hashCode()).getBytes());
+                if (ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
+                    ses.setSessionContext(serverCtx);
+                }
+                else {
+                    ses.setSessionContext(clientCtx);
+                }
             }
             else {
                 /* Remove old entry from table. TLS 1.3 binder changes between
