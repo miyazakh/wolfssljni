@@ -247,8 +247,6 @@ public class WolfSSLX509Test {
                 fail("failed to get TBS cert");
                 return;
             }
-            System.out.println("tbs length " + tbs.length);
-            System.out.println("expectedTbs length " + expectedTbs.length);
 
             if (tbs.length != expectedTbs.length) {
                 error("\t\t\t... failed");
