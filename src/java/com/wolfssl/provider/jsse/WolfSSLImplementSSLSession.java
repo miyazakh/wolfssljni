@@ -368,9 +368,18 @@ public class WolfSSLImplementSSLSession implements SSLSession {
      * Takes in a new WOLFSSL object and sets the stored session
      * @param in WOLFSSL session to set resume in
      */
-    protected void resume(WolfSSLSession in) {
-        ssl = in;
-        ssl.setSession(this.sesPtr);
+    protected synchronized int resume(WolfSSLSession in) {
+        int ret = WolfSSL.SSL_FAILURE;
+
+        if (this.sesPtr != 0)
+            ret = ssl.setSession(this.sesPtr);
+
+        /* only set when setSession is successful. */
+        if (ret == WolfSSL.SSL_SUCCESS) {
+            ssl = in;
+        }
+
+        return ret;
     }
 
 
