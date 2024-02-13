@@ -169,9 +169,9 @@ JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setServerID
 
 /*
     * Class:     com_wolfssl_WolfSSLSession
-    * Method:    setTimeout
-    * Signature: (JJ)I
-    */
+ * Method:    setTimeout
+ * Signature: (JJ)I
+ */
 JNIEXPORT jint JNICALL Java_com_wolfssl_WolfSSLSession_setTimeout(JNIEnv *, jobject, jlong, jlong);
 
 /*
