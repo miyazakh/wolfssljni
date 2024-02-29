@@ -246,22 +246,6 @@ public class WolfSSLEngine extends SSLEngine {
             pro += CopyOutPacket(out, status);
         }
         else if (pro == 0) {
-                if(!this.ssl.handshakeDone() || this.toSend != null) {
-                    try {
-                        if(this.getUseClientMode()) {
-                            ret = this.ssl.connect();
-                        } else {
-                            ret = this.ssl.accept();
-                        }
-                        if (ret == WolfSSL.SSL_SUCCESS) {
-                                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                                    "calling EngineHelper.saveSession()");
-                                EngineHelper.saveSession();
-                        }
-                    } catch (SocketTimeoutException e) {
-                        throw new SSLException(e);
-                    }
-                }
                 /* get buffer size */
                 for (i = ofst; i < ofst + len; i++) {
                     max += in[i].remaining();
