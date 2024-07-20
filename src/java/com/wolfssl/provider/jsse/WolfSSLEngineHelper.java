@@ -30,8 +30,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.net.SocketTimeoutException;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
@@ -59,7 +57,6 @@ public class WolfSSLEngineHelper {
     private boolean clientMode;
     private boolean sessionCreation = true;
     private boolean modeSet = false;
-    private MessageDigest md;
 
     /* Internal Java verify callback, used when user/app is not using
      * com.wolfssl.provider.jsse.WolfSSLTrustX509 and instead using their
@@ -90,12 +87,6 @@ public class WolfSSLEngineHelper {
         this.params = params;
         this.authStore = store;
         this.session = new WolfSSLImplementSSLSession(store);
-
-        try {
-            this.md = MessageDigest.getInstance("SHA-1");
-        } catch (NoSuchAlgorithmException e) {
-            throw new WolfSSLException("Bad argument");
-        }
 
         WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
             "created new WolfSSLEngineHelper()");
@@ -558,12 +549,11 @@ public class WolfSSLEngineHelper {
 
         if (this.clientMode) {
             serverId = this.hostname + this.port + Arrays.toString(this.getProtocols());
-            String serverID_hash   = new String(this.md.digest(serverId.getBytes()));
-            ret = this.ssl.setServerId(serverID_hash);
-
+            ret = this.ssl.setServerId(Integer.valueOf(serverId.hashCode()).toString());
+            
             WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
                 "setServerId(" + serverId + ")");
-
+        
             if(ret != WolfSSL.SSL_SUCCESS)
                 return WolfSSL.SSL_HANDSHAKE_FAILURE;
         }
