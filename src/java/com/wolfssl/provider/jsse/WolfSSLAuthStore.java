@@ -299,57 +299,59 @@ public class WolfSSLAuthStore {
                 "attempting to look up session (" +
                 "host: " + host + ", port: " + port + ")");
 
-        /* check if is in table */
-        toHash = host.concat(Integer.toString(port));
-
         synchronized (storeLock) {
+            
+            /* check if is in table */
+            toHash = host.concat(Integer.toString(port));
+
             ses = store.get(toHash.hashCode());
-        }
-        if (ses == null) {
-            /* not found in stored sessions create a new one */
-            ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
-            ses.setValid(true); /* new sessions marked as valid */
-            if (ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
-                ses.setSessionContext(serverCtx);
-            }
-            else {
-                ses.setSessionContext(clientCtx);
-            }
-            WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
-                    "session not found in cache table, creating new, Session ID: ",
-                    ses.getId(), ses.getId().length);
-        }
-        else {
-            /* Remove old entry from table. TLS 1.3 binder changes between
-            * resumptions and stored session should only be used to
-            * resume once. New session structure/object will be cached
-            * after the resumed session completes the handshake, for
-            * subsequent resumption attempts to use. */
-            store.remove(toHash.hashCode());
 
-            WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
-                    "session found in cache, trying to resume, Session ID: ",
-                    ses.getId(), ses.getId().length);
-
-
-            if (ses.resume(ssl) != WolfSSL.SSL_SUCCESS) {
-                WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
-                    "native wolfSSL_set_session() failed, " +
-                    "creating new session");
-
+            if (ses == null) {
+                /* not found in stored sessions create a new one */
                 ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
-                ses.setValid(true);
-
+                ses.setValid(true); /* new sessions marked as valid */
                 if (ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
                     ses.setSessionContext(serverCtx);
                 }
                 else {
                     ses.setSessionContext(clientCtx);
                 }
+                WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
+                        "session not found in cache table, creating new, Session ID: ",
+                        ses.getId(), ses.getId().length);
             }
+            else {
+                /* Remove old entry from table. TLS 1.3 binder changes between
+                * resumptions and stored session should only be used to
+                * resume once. New session structure/object will be cached
+                * after the resumed session completes the handshake, for
+                * subsequent resumption attempts to use. */
+                store.remove(toHash.hashCode());
 
+                WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
+                        "session found in cache, trying to resume, Session ID: ",
+                        ses.getId(), ses.getId().length);
+
+
+                if (ses.resume(ssl) != WolfSSL.SSL_SUCCESS) {
+                    WolfSSLDebug.log(getClass(), WolfSSLDebug.INFO,
+                        "native wolfSSL_set_session() failed, " +
+                        "creating new session");
+
+                    ses = new WolfSSLImplementSSLSession(ssl, port, host, this);
+                    ses.setValid(true);
+
+                    if (ssl.getSide() == WolfSSL.WOLFSSL_SERVER_END) {
+                        ses.setSessionContext(serverCtx);
+                    }
+                    else {
+                        ses.setSessionContext(clientCtx);
+                    }
+                }
+
+            }
+            return ses;
         }
-        return ses;
     }
 
     /** Returns a new session, does not check/save for resumption
@@ -380,22 +382,24 @@ public class WolfSSLAuthStore {
     protected int addSession(WolfSSLImplementSSLSession session) {
         String toHash;
 
-        if (session.getPeerHost() != null) {
-            /* register into session table for resumption */
-            session.fromTable = true;
-            toHash = session.getPeerHost().concat(Integer.toString(
-                     session.getPeerPort()));
-            store.put(toHash.hashCode(), session);
+        synchronized (storeLock) {
+            if (session.getPeerHost() != null) {
+                /* register into session table for resumption */
+                session.fromTable = true;
+                toHash = session.getPeerHost().concat(Integer.toString(
+                         session.getPeerPort()));
+                store.put(toHash.hashCode(), session);
 
 
-            WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
-                    "stored session in cache table (host: " +
-                    session.getPeerHost() + ", port: " +
-                    session.getPeerPort() + "), Session ID: ",
-                    session.getId(), session.getId().length);
+                WolfSSLDebug.logHex(getClass(), WolfSSLDebug.INFO,
+                        "stored session in cache table (host: " +
+                        session.getPeerHost() + ", port: " +
+                        session.getPeerPort() + "), Session ID: ",
+                        session.getId(), session.getId().length);
+            }
+
+            return WolfSSL.SSL_SUCCESS;
         }
-
-        return WolfSSL.SSL_SUCCESS;
     }
 
 
@@ -410,8 +414,8 @@ public class WolfSSLAuthStore {
                 WolfSSLImplementSSLSession current = (WolfSSLImplementSSLSession)obj;
                 ret.add(current.getId());
             }
+            return Collections.enumeration(ret);
         }
-        return Collections.enumeration(ret);
     }
 
 
@@ -430,8 +434,8 @@ public class WolfSSLAuthStore {
                     break;
                 }
             }
+            return ret;
         }
-        return ret;
     }
 
 
