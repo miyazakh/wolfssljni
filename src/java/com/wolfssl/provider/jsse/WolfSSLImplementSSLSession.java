@@ -56,11 +56,9 @@ public class WolfSSLImplementSSLSession implements SSLSession {
     Date creation;
     Date accessed; /* when new connection was made using session */
 
-    /* Cache peer certificates after received. Applications assume that
-     * SSLSocket.getSession().getPeerCertificates() will return the peer
-     * certificate even on a resumed connection where the cert has not been
-     * sent during the handshake. */
-    private Certificate[] peerCerts = null;
+    /**
+     * has this session been registered
+     */
 
     /** Has this session been registered */
     protected boolean fromTable = false;
@@ -76,7 +74,6 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.host = host;
         this.authStore = params;
         this.valid = false; /* flag if joining or resuming session is allowed */
-        this.peerCerts = null;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -90,7 +87,6 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.host = null;
         this.authStore = params;
         this.valid = false; /* flag if joining or resuming session is allowed */
-        this.peerCerts = null;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -102,7 +98,6 @@ public class WolfSSLImplementSSLSession implements SSLSession {
         this.host = null;
         this.authStore = params;
         this.valid = false; /* flag if joining or resuming session is allowed */
-        this.peerCerts = null;
         binding = new HashMap<String, Object>();
 
         creation = new Date();
@@ -210,11 +205,6 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             throw new SSLPeerUnverifiedException("handshake not complete");
         }
 
-        /* If peer cert is already cached, just return that */
-        if (this.peerCerts != null) {
-            return this.peerCerts.clone();
-        }
-
         try {
             x509 = this.ssl.getPeerCertificate();
         } catch (IllegalStateException | WolfSSLJNIException ex) {
@@ -235,10 +225,7 @@ public class WolfSSLImplementSSLSession implements SSLSession {
             throw new SSLPeerUnverifiedException("Error creating certificate");
         }
 
-        /* cache peer cert for use by app in resumed session */
-        this.peerCerts = new Certificate[] { cert };
-
-        return this.peerCerts.clone();
+        return new Certificate[] { cert };
     }
 
     @Override
